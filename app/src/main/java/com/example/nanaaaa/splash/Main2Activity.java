@@ -113,8 +113,10 @@ public class Main2Activity extends AppCompatActivity {
                     JSONObject jsonObject = jsonArray.getJSONObject(i);
                     Hotel hotel = new Hotel();
                     hotel.title = jsonObject.getString("title");
+                    hotel.author = jsonObject.getString("author");
                     hotel.category = jsonObject.getString("category");
                     hotel.thumbnail = jsonObject.getString("thumbnail");
+                    hotel.content = jsonObject.getString("content");
                     data.add(hotel);
                 }
 

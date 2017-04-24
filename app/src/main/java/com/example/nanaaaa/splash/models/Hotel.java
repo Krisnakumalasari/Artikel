@@ -1,10 +1,12 @@
 package com.example.nanaaaa.splash.models;
 
+import java.io.Serializable;
+
 /**
  * Created by Nanaaaa on 4/20/2017.
  */
 
-public class Hotel {
+public class Hotel implements Serializable {
 
     public String id;
     public String title;
