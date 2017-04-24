@@ -1,71 +1,133 @@
 package com.example.nanaaaa.splash;
 
-import android.content.res.Resources;
-import android.content.res.TypedArray;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
+import android.app.ProgressDialog;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
-import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.widget.Toast;
 
 import com.example.nanaaaa.splash.adapter.HotelAdapter;
-import com.example.nanaaaa.splash.model.Hotel;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
+import com.example.nanaaaa.splash.models.Hotel;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Main2Activity extends AppCompatActivity {
 
-    ArrayList<Hotel> mList = new ArrayList<>();
-    HotelAdapter mAdapter;
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    private GoogleApiClient client;
+    public static final int CONNECTION_TIMEOUT = 10000;
+    public static final int READ_TIMEOUT = 15000;
+    private RecyclerView recyclerView;
+    private HotelAdapter hotelAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main2);
 
-        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
-        mAdapter = new HotelAdapter(mList);
-        recyclerView.setAdapter(mAdapter);
-
-        fillData();
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+        new AsyncFetch().execute();
     }
 
-    private void fillData() {
-        Resources resources = getResources();
-        String[] arJudul = resources.getStringArray(R.array.places);
-        String[] arDeskripsi = resources.getStringArray(R.array.place_desc);
-        TypedArray a = resources.obtainTypedArray(R.array.places_picture);
-        Drawable[] arFoto = new Drawable[a.length()];
+    private class AsyncFetch extends AsyncTask<String, String, String> {
 
-        for (int i = 0; i < arFoto.length; i++) {
-            BitmapDrawable bd = (BitmapDrawable) a.getDrawable(i);
-            RoundedBitmapDrawable rbd =
-                    RoundedBitmapDrawableFactory.create(getResources(), bd.getBitmap());
-            rbd.setCircular(true);
-            arFoto[i] = rbd;
-        }
-        a.recycle();
+        ProgressDialog progressDialog = new ProgressDialog(Main2Activity.this);
+        HttpURLConnection connection;
+        URL url = null;
 
-        for (int i = 0; i < arJudul.length; i++) {
-            mList.add(new Hotel(arJudul[i], arDeskripsi[i], arFoto[i]));
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+            progressDialog.setMessage("\tLoading...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
         }
-        mAdapter.notifyDataSetChanged();
+
+        @Override
+        protected String doInBackground(String... params) {
+            try {
+                url = new URL("http://dev.republika.co.id/android/latest/smktelkom");
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+                return e.toString();
+            }
+            try {
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setReadTimeout(READ_TIMEOUT);
+                connection.setConnectTimeout(CONNECTION_TIMEOUT);
+                connection.setRequestMethod("GET");
+                connection.setDoOutput(true);
+
+            } catch (IOException e1) {
+                e1.printStackTrace();
+                return e1.toString();
+            }
+            try {
+                int response_code = connection.getResponseCode();
+
+                if (response_code == HttpURLConnection.HTTP_OK) {
+                    InputStream inputStream = connection.getInputStream();
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                    StringBuilder result = new StringBuilder();
+                    String line;
+
+                    while ((line = bufferedReader.readLine()) != null) {
+                        result.append(line);
+                    }
+                    return (result.toString());
+                } else {
+                    return ("unsucsessful");
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                return e.toString();
+            } finally {
+                connection.disconnect();
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+
+            progressDialog.dismiss();
+            List<Hotel> data = new ArrayList<>();
+
+            progressDialog.dismiss();
+            try {
+                JSONArray jsonArray = new JSONArray(result);
+
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                    Hotel hotel = new Hotel();
+                    hotel.title = jsonObject.getString("title");
+                    hotel.category = jsonObject.getString("category");
+                    hotel.thumbnail = jsonObject.getString("thumbnail");
+                    data.add(hotel);
+                }
+
+                RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+                hotelAdapter = new HotelAdapter(Main2Activity.this, data);
+                recyclerView.setAdapter(hotelAdapter);
+                recyclerView.setLayoutManager(new LinearLayoutManager(Main2Activity.this));
+
+
+            } catch (JSONException e) {
+                Toast.makeText(Main2Activity.this, e.toString(), Toast.LENGTH_LONG).show();
+            }
+
+        }
     }
-
-
 }
